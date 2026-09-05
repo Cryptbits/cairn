@@ -41,7 +41,7 @@ export function Privacy() {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-[16px] mt-[24px]">
             <div className="flex flex-col gap-[12px] p-[20px] bg-surface-2 rounded-[16px] border border-bdr shadow-inset-deep">
-              <div className="flex items-center gap-[8px] text-text-3 mb-[8px]">
+              <div className="flex items-center gap-[8px] text-text-2 mb-[8px]">
                 <Lock size={16} strokeWidth={2} />
                 <span className="text-[11px] font-bold uppercase tracking-wider">Private (Encrypted)</span>
               </div>
@@ -97,7 +97,7 @@ export function Privacy() {
           <Eyebrow>How a draw resolves</Eyebrow>
           <p className="text-[13.5px] text-text-2 leading-relaxed mt-[12px] max-w-[600px]">
             Cairn runs on Zama's FHEVM, so the contract computes directly over encrypted values. It never needs to decrypt anyone's
-            balance to total up weight or pick a winner. There is no privileged operator required to carry the draw through: connected wallets can trigger the required onchain steps, and only the winning address becomes public once a round resolves.
+            balance to total up weight or pick a winner. Advancing a round is automated by a keeper bot, and the same onchain functions stay permissionless as a documented fallback — no saver is ever asked to pay gas advancing a draw on everyone else's behalf. Only the winning address becomes public once a round resolves.
           </p>
 
           <div className="flex flex-col gap-[10px] mt-[20px]">
@@ -124,13 +124,11 @@ export function Privacy() {
           <div className="flex flex-col md:flex-row items-stretch gap-[16px] mt-[16px]">
             <div className="flex flex-col items-center justify-center text-center p-[24px] rounded-[16px] bg-surface-2 border border-bdr shadow-inset-deep md:w-[200px] shrink-0">
               <span className="font-d text-[36px] font-[560] num text-white">{yieldRatePct !== null ? `${yieldRatePct}%` : '–'}</span>
-              <span className="text-[11px] font-semibold tracking-wider text-text-3 mt-[6px] uppercase">Of verified weight</span>
+              <span className="text-[11px] font-semibold tracking-wider text-text-2 mt-[6px] uppercase">Of verified weight</span>
             </div>
             <p className="text-[13.5px] text-text-2 leading-relaxed flex-1">
               Each round's prize is computed automatically from that percentage of the round's real, verified total draw weight, paid
-              out of a reserve the contract owner funds ahead of time. It's a testnet-illustrative rate, not a real market yield;
-              the current Sepolia setup does not use an external yield-bearing market. The mechanism itself is
-              genuine: no one decides a prize by hand round to round, and a draw can never pay out more than what's actually funded.
+              out of a reserve the contract owner funds ahead of time. It's a testnet-illustrative rate and no one decides a prize by hand round to round, and a draw can never pay out more than what's actually funded.
             </p>
           </div>
         </Card>

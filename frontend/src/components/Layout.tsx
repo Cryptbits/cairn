@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewType } from '../types';
-import { Home, ArrowDownCircle, Trophy, CheckCircle2, Shield, Wrench } from 'lucide-react';
+import { Home, ArrowDownCircle, Trophy, CheckCircle2, Shield, BookOpen, Wrench } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAccount } from 'wagmi';
 import { WalletHeader } from './layout/WalletHeader';
@@ -26,6 +26,7 @@ export function Layout({ currentView, setCurrentView, children }: LayoutProps) {
     id: ViewType;
     label: string;
     icon: typeof Home;
+    mobileIcon?: typeof Home;
     mobileLabel?: string;
     groupLabel?: string;
   };
@@ -35,7 +36,12 @@ export function Layout({ currentView, setCurrentView, children }: LayoutProps) {
     { id: 'deposit', label: 'Deposit / Withdraw', mobileLabel: 'Deposit', icon: ArrowDownCircle },
     { id: 'draw', label: 'Draw', icon: Trophy },
     { id: 'result', label: 'Claim', icon: CheckCircle2 },
-    { id: 'privacy', label: 'Privacy Center', mobileLabel: 'More', icon: Shield, groupLabel: 'Learn' },
+    // Desktop sidebar keeps Shield (it's genuinely the "Privacy Center"
+    // there, next to its own label). On mobile this collapses to a bare
+    // "More" tab, where a shield reads as a security toggle rather than
+    // what it actually opens — a documentation/explainer page — so that
+    // tab gets its own, docs-appropriate icon instead of reusing Shield.
+    { id: 'privacy', label: 'Privacy Center', mobileLabel: 'More', icon: Shield, mobileIcon: BookOpen, groupLabel: 'Learn' },
     ...(isOwner ? [{ id: 'admin' as ViewType, label: 'Fund yield source', icon: Wrench, groupLabel: 'Owner tools' }] : []),
   ];
 
@@ -113,13 +119,14 @@ export function Layout({ currentView, setCurrentView, children }: LayoutProps) {
         <nav className="md:hidden sticky bottom-0 z-20 flex justify-around p-[10px_8px_calc(10px+env(safe-area-inset-bottom,0px))] bg-[#12100C]/80 backdrop-blur-xl border-t border-bdr-strong mt-auto">
           {navItems.filter(i => mobileNavItems.includes(i.id)).map(item => {
             const isActive = currentView === item.id || (currentView === 'claim' && item.id === 'result');
+            const Icon = item.mobileIcon ?? item.icon;
             return (
               <button
                 key={item.id}
                 onClick={() => setCurrentView(item.id as ViewType)}
                 className={`flex flex-col items-center gap-[4px] p-[6px_10px] rounded-[12px] text-[10px] font-semibold transition-colors ${isActive ? 'text-accent-2' : 'text-text-3 hover:text-text-2'}`}
               >
-                <item.icon className="w-[20px] h-[20px]" strokeWidth={isActive ? 2.2 : 1.8} />
+                <Icon className="w-[20px] h-[20px]" strokeWidth={isActive ? 2.2 : 1.8} />
                 {item.mobileLabel || item.label}
               </button>
             );

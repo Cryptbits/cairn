@@ -1,0 +1,448 @@
+diff -ruN orig/cairn/frontend/src/components/Layout.tsx cairn/frontend/src/components/Layout.tsx
+--- a/frontend/src/components/Layout.tsx	2026-09-04 12:06:27.000000000 +0000
++++ b/frontend/src/components/Layout.tsx	2026-09-05 14:24:07.537724818 +0000
+@@ -1,6 +1,6 @@
+ import React from 'react';
+ import { ViewType } from '../types';
+-import { Home, ArrowDownCircle, Trophy, CheckCircle2, Shield, Wrench } from 'lucide-react';
++import { Home, ArrowDownCircle, Trophy, CheckCircle2, Shield, BookOpen, Wrench } from 'lucide-react';
+ import { motion, AnimatePresence } from 'motion/react';
+ import { useAccount } from 'wagmi';
+ import { WalletHeader } from './layout/WalletHeader';
+@@ -29,6 +29,7 @@
+     id: ViewType;
+     label: string;
+     icon: typeof Home;
++    mobileIcon?: typeof Home;
+     mobileLabel?: string;
+     groupLabel?: string;
+   };
+@@ -38,7 +39,12 @@
+     { id: 'deposit', label: 'Deposit / Withdraw', mobileLabel: 'Deposit', icon: ArrowDownCircle },
+     { id: 'draw', label: 'Draw', icon: Trophy },
+     { id: 'result', label: 'Claim', icon: CheckCircle2 },
+-    { id: 'privacy', label: 'Privacy Center', mobileLabel: 'More', icon: Shield, groupLabel: 'Learn' },
++    // Desktop sidebar keeps Shield (it's genuinely the "Privacy Center"
++    // there, next to its own label). On mobile this collapses to a bare
++    // "More" tab, where a shield reads as a security toggle rather than
++    // what it actually opens — a documentation/explainer page — so that
++    // tab gets its own, docs-appropriate icon instead of reusing Shield.
++    { id: 'privacy', label: 'Privacy Center', mobileLabel: 'More', icon: Shield, mobileIcon: BookOpen, groupLabel: 'Learn' },
+     ...(isOwner ? [{ id: 'admin' as ViewType, label: 'Fund yield source', icon: Wrench, groupLabel: 'Owner tools' }] : []),
+   ];
+ 
+@@ -116,13 +122,14 @@
+         <nav className="md:hidden sticky bottom-0 z-20 flex justify-around p-[10px_8px_calc(10px+env(safe-area-inset-bottom,0px))] bg-[#12100C]/80 backdrop-blur-xl border-t border-bdr-strong mt-auto">
+           {navItems.filter(i => mobileNavItems.includes(i.id)).map(item => {
+             const isActive = currentView === item.id || (currentView === 'claim' && item.id === 'result');
++            const Icon = item.mobileIcon ?? item.icon;
+             return (
+               <button
+                 key={item.id}
+                 onClick={() => setCurrentView(item.id as ViewType)}
+                 className={`flex flex-col items-center gap-[4px] p-[6px_10px] rounded-[12px] text-[10px] font-semibold transition-colors ${isActive ? 'text-accent-2' : 'text-text-3 hover:text-text-2'}`}
+               >
+-                <item.icon className="w-[20px] h-[20px]" strokeWidth={isActive ? 2.2 : 1.8} />
++                <Icon className="w-[20px] h-[20px]" strokeWidth={isActive ? 2.2 : 1.8} />
+                 {item.mobileLabel || item.label}
+               </button>
+             );
+diff -ruN orig/cairn/frontend/src/components/ui/Card.tsx cairn/frontend/src/components/ui/Card.tsx
+--- a/frontend/src/components/ui/Card.tsx	2026-08-15 23:50:26.000000000 +0000
++++ b/frontend/src/components/ui/Card.tsx	2026-09-05 14:23:01.069203822 +0000
+@@ -30,7 +30,7 @@
+ 
+ export function Eyebrow({ children, className = '' }: { children: React.ReactNode, className?: string }) {
+   return (
+-    <span className={`block text-[11px] uppercase tracking-[0.12em] text-text-3 font-semibold mb-[8px] ${className}`}>
++    <span className={`block text-[11px] uppercase tracking-[0.12em] text-text-2 font-semibold mb-[8px] ${className}`}>
+       {children}
+     </span>
+   );
+diff -ruN orig/cairn/frontend/src/components/ui/GetTestTokens.tsx cairn/frontend/src/components/ui/GetTestTokens.tsx
+--- a/frontend/src/components/ui/GetTestTokens.tsx	2026-09-05 05:38:53.000000000 +0000
++++ b/frontend/src/components/ui/GetTestTokens.tsx	2026-09-05 14:23:41.217747217 +0000
+@@ -18,10 +18,14 @@
+  *    stacked, center-aligned block, so it reads as one small utility line,
+  *    not a second feature on the page.
+  *
+- * 2. The link for step 2 pointed at an unverified deep link
+- *    (app.zama.org/shield) that may not resolve — Zama's shielding UI
+- *    (formerly "Zama Portfolio") now lives at the app.zama.org root, so
+- *    this links there instead of guessing a path.
++ * 2. The link for step 2 pointed at app.zama.org/shield, which is Zama's
++ *    mainnet-only quick-shield action (its nav only offers Shield/Unshield/
++ *    Send/Earn against Ethereum mainnet). Sepolia shielding lives in the
++ *    separate Portfolio App at portfolio.zama.org, which Zama's own protocol
++ *    update explicitly documents as covering "portfolio overview, shielding,
++ *    unshielding, and transfers across both Ethereum mainnet and Sepolia
++ *    testnet" — so judges can pick Sepolia there once connected. This links
++ *    there instead.
+  */
+ export function GetTestTokens({ symbol, context = 'deposit with' }: { symbol: string; context?: string }) {
+   return (
+@@ -42,12 +46,12 @@
+         </a>
+         <span className="text-text-3 text-[12px]">→</span>
+         <a
+-          href="https://app.zama.org"
++          href="https://portfolio.zama.org"
+           target="_blank"
+           rel="noreferrer"
+           className="inline-flex items-center gap-[4px] text-[12px] font-medium text-text-1 hover:text-accent-2 transition-colors"
+         >
+-          2. Shield into {symbol} <ArrowUpRight size={11} strokeWidth={2} />
++          2. Shield into {symbol} (select Sepolia) <ArrowUpRight size={11} strokeWidth={2} />
+         </a>
+       </div>
+     </div>
+diff -ruN orig/cairn/frontend/src/components/views/Deposit.tsx cairn/frontend/src/components/views/Deposit.tsx
+--- a/frontend/src/components/views/Deposit.tsx	2026-09-05 05:39:01.000000000 +0000
++++ b/frontend/src/components/views/Deposit.tsx	2026-09-05 14:44:50.313383322 +0000
+@@ -12,7 +12,7 @@
+ import { useAccount } from 'wagmi';
+ import { isContractConfigured, isCusdtConfigured, CUSDT_ADDRESS } from '../../config/contracts';
+ import { useNetworkGuard } from '../../hooks/useNetworkGuard';
+-import { useDepositAction, useWithdrawAction, useApproveOperatorAction } from '../../hooks/useCairnActions';
++import { useDepositAction, useWithdrawAction, useApproveOperatorAction, useLeavePoolAction } from '../../hooks/useCairnActions';
+ import { useMyPrincipalHandle, useCusdtDecimals, useCusdtSymbol, useIsPoolOperator, useCusdtBalanceHandle } from '../../hooks/useCairnReads';
+ import { useSharedDecrypt } from '../../context/DecryptedBalancesContext';
+ import { toBaseUnits, fromBaseUnits, displaySymbol } from '../../lib/format';
+@@ -40,6 +40,7 @@
+   const approveAction = useApproveOperatorAction();
+   const depositAction = useDepositAction();
+   const withdrawAction = useWithdrawAction();
++  const leavePoolAction = useLeavePoolAction();
+   const action = mode === 'deposit' ? depositAction : withdrawAction;
+   const principalHandle = useMyPrincipalHandle();
+   const walletBalanceHandle = useCusdtBalanceHandle();
+@@ -113,6 +114,17 @@
+     prevApproveStatus.current = approveAction.status;
+   }, [approveAction.status]);
+ 
++  const prevLeaveStatus = useRef(leavePoolAction.status);
++  useEffect(() => {
++    if (prevLeaveStatus.current !== 'success' && leavePoolAction.status === 'success') {
++      principalHandle.refetch();
++      walletBalanceHandle.refetch();
++      decryptState.reset();
++      walletDecryptState.reset();
++    }
++    prevLeaveStatus.current = leavePoolAction.status;
++  }, [leavePoolAction.status]);
++
+   const getTxStatusMode = () => {
+     if (action.status === 'success') return 'success';
+     if (action.status === 'rejected' || action.status === 'failed') return 'error';
+@@ -333,6 +345,34 @@
+                     <Button className="w-full mt-[24px] h-[52px] text-[15px]" disabled={isSubmitting || !isConnected || !isContractConfigured || (isConnected && !isSepolia) || !amount} onClick={handleSubmit}>
+                       {!isConnected ? 'Connect Wallet' : mode === 'deposit' ? `Encrypt & deposit` : `Encrypt & withdraw`}
+                     </Button>
++                    {mode === 'withdraw' && isConnected && (
++                      leavePoolAction.status !== 'idle' ? (
++                        <div className="mt-[14px]">
++                          <TransactionState
++                            status={leavePoolAction.status === 'success' ? 'success' : leavePoolAction.status === 'failed' || leavePoolAction.status === 'rejected' ? 'error' : 'processing'}
++                            title={
++                              leavePoolAction.status === 'success' ? 'Left the pool'
++                              : leavePoolAction.status === 'failed' || leavePoolAction.status === 'rejected' ? "Didn't go through"
++                              : 'Withdrawing everything and leaving'
++                            }
++                            subtitle={leavePoolAction.status === 'success' ? `Full balance returned. You won't be counted in future draws until you deposit again.` : (leavePoolAction.error ?? 'Confirming…')}
++                            onDismiss={() => leavePoolAction.reset()}
++                            errorAction={() => leavePoolAction.run()}
++                            showEtherscanLink={leavePoolAction.status === 'success'}
++                            txHash={leavePoolAction.txHash}
++                          />
++                        </div>
++                      ) : (
++                        <button
++                          type="button"
++                          onClick={() => leavePoolAction.run()}
++                          disabled={!isContractConfigured || !isSepolia}
++                          className="w-full mt-[14px] text-[12.5px] text-text-2 hover:text-text-1 transition-colors disabled:opacity-40"
++                        >
++                          Leave the pool entirely — withdraws everything, removes you from future draws
++                        </button>
++                      )
++                    )}
+                   </>
+                 )}
+               </motion.div>
+diff -ruN orig/cairn/frontend/src/components/views/Draw.tsx cairn/frontend/src/components/views/Draw.tsx
+--- a/frontend/src/components/views/Draw.tsx	2026-09-05 05:38:11.000000000 +0000
++++ b/frontend/src/components/views/Draw.tsx	2026-09-05 14:45:01.291801786 +0000
+@@ -317,7 +317,7 @@
+                           disabled={disabledBase || readyAction.status !== 'idle'}
+                           className="underline decoration-dotted underline-offset-2 hover:text-text-1 transition-colors disabled:opacity-40"
+                         >
+-                          not ready anymore?
++                          Not ready
+                         </button>
+                       </>
+                     )}
+@@ -462,14 +462,6 @@
+             <Callout variant="primary">You won this round. Head to Claim to reveal and collect your prize.</Callout>
+           )}
+         </Card>
+-
+-        <button
+-          type="button"
+-          onClick={() => setCurrentView('privacy')}
+-          className="self-center text-[12.5px] text-text-3 hover:text-text-1 transition-colors underline decoration-dotted underline-offset-2"
+-        >
+-          How draw resolution works →
+-        </button>
+       </div>
+     </div>
+   );
+diff -ruN orig/cairn/frontend/src/components/views/Landing.tsx cairn/frontend/src/components/views/Landing.tsx
+--- a/frontend/src/components/views/Landing.tsx	2026-09-04 09:00:36.000000000 +0000
++++ b/frontend/src/components/views/Landing.tsx	2026-09-05 14:23:07.475137043 +0000
+@@ -41,17 +41,17 @@
+             <div className="font-d text-[28px] md:text-[32px] font-[560] num text-white">
+               {isContractConfigured && participantCount.data !== undefined ? String(participantCount.data) : '–'}
+             </div>
+-            <div className="text-[11px] font-semibold tracking-wider text-text-3 mt-[6px]">PARTICIPANTS · PUBLIC</div>
++            <div className="text-[11px] font-semibold tracking-wider text-text-2 mt-[6px]">PARTICIPANTS · PUBLIC</div>
+           </div>
+           <div className="flex-1 text-center p-[28px_16px] border-r border-bdr-strong">
+             <div className="font-d text-[28px] md:text-[32px] font-[560] num text-white">
+               {isContractConfigured && nextDrawId.data !== undefined ? String(nextDrawId.data) : '–'}
+             </div>
+-            <div className="text-[11px] font-semibold tracking-wider text-text-3 mt-[6px]">DRAWS RUN SO FAR · PUBLIC</div>
++            <div className="text-[11px] font-semibold tracking-wider text-text-2 mt-[6px]">DRAWS RUN SO FAR · PUBLIC</div>
+           </div>
+           <div className="flex-1 text-center p-[28px_16px]">
+             <div className="font-d text-[28px] md:text-[32px] font-[560] num text-text-3">Encrypted</div>
+-            <div className="text-[11px] font-semibold tracking-wider text-text-3 mt-[6px]">PRIZE RESERVE · CONFIDENTIAL</div>
++            <div className="text-[11px] font-semibold tracking-wider text-text-2 mt-[6px]">PRIZE RESERVE · CONFIDENTIAL</div>
+           </div>
+         </div>
+         {!isContractConfigured && (
+diff -ruN orig/cairn/frontend/src/components/views/Privacy.tsx cairn/frontend/src/components/views/Privacy.tsx
+--- a/frontend/src/components/views/Privacy.tsx	2026-09-04 20:08:03.000000000 +0000
++++ b/frontend/src/components/views/Privacy.tsx	2026-09-05 14:23:25.389757887 +0000
+@@ -41,7 +41,7 @@
+           
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-[16px] mt-[24px]">
+             <div className="flex flex-col gap-[12px] p-[20px] bg-surface-2 rounded-[16px] border border-bdr shadow-inset-deep">
+-              <div className="flex items-center gap-[8px] text-text-3 mb-[8px]">
++              <div className="flex items-center gap-[8px] text-text-2 mb-[8px]">
+                 <Lock size={16} strokeWidth={2} />
+                 <span className="text-[11px] font-bold uppercase tracking-wider">Private (Encrypted)</span>
+               </div>
+@@ -97,7 +97,7 @@
+           <Eyebrow>How a draw resolves</Eyebrow>
+           <p className="text-[13.5px] text-text-2 leading-relaxed mt-[12px] max-w-[600px]">
+             Cairn runs on Zama's FHEVM, so the contract computes directly over encrypted values. It never needs to decrypt anyone's
+-            balance to total up weight or pick a winner. There is no privileged operator required to carry the draw through: connected wallets can trigger the required on-chain steps, and only the winning address becomes public once a round resolves.
++            balance to total up weight or pick a winner. Advancing a round is automated by a keeper bot, and the same on-chain functions stay permissionless as a documented fallback — no saver is ever asked to pay gas advancing a draw on everyone else's behalf. Only the winning address becomes public once a round resolves.
+           </p>
+ 
+           <div className="flex flex-col gap-[10px] mt-[20px]">
+@@ -124,7 +124,7 @@
+           <div className="flex flex-col md:flex-row items-stretch gap-[16px] mt-[16px]">
+             <div className="flex flex-col items-center justify-center text-center p-[24px] rounded-[16px] bg-surface-2 border border-bdr shadow-inset-deep md:w-[200px] shrink-0">
+               <span className="font-d text-[36px] font-[560] num text-white">{yieldRatePct !== null ? `${yieldRatePct}%` : '–'}</span>
+-              <span className="text-[11px] font-semibold tracking-wider text-text-3 mt-[6px] uppercase">Of verified weight</span>
++              <span className="text-[11px] font-semibold tracking-wider text-text-2 mt-[6px] uppercase">Of verified weight</span>
+             </div>
+             <p className="text-[13.5px] text-text-2 leading-relaxed flex-1">
+               Each round's prize is computed automatically from that percentage of the round's real, verified total draw weight, paid
+diff -ruN orig/cairn/frontend/src/config/CairnPool.abi.json cairn/frontend/src/config/CairnPool.abi.json
+--- a/frontend/src/config/CairnPool.abi.json	2026-09-02 07:48:38.000000000 +0000
++++ b/frontend/src/config/CairnPool.abi.json	2026-09-05 14:43:09.082406164 +0000
+@@ -162,6 +162,19 @@
+     "inputs": [
+       {
+         "indexed": true,
++        "internalType": "address",
++        "name": "user",
++        "type": "address"
++      }
++    ],
++    "name": "LeftPool",
++    "type": "event"
++  },
++  {
++    "anonymous": false,
++    "inputs": [
++      {
++        "indexed": true,
+         "internalType": "uint256",
+         "name": "drawId",
+         "type": "uint256"
+@@ -393,6 +406,13 @@
+     "type": "function"
+   },
+   {
++    "inputs": [],
++    "name": "leavePool",
++    "outputs": [],
++    "stateMutability": "nonpayable",
++    "type": "function"
++  },
++  {
+     "inputs": [],
+     "name": "maxCohortSize",
+     "outputs": [
+diff -ruN orig/cairn/frontend/src/hooks/useCairnActions.ts cairn/frontend/src/hooks/useCairnActions.ts
+--- a/frontend/src/hooks/useCairnActions.ts	2026-09-05 11:05:57.000000000 +0000
++++ b/frontend/src/hooks/useCairnActions.ts	2026-09-05 14:43:26.616279047 +0000
+@@ -264,6 +264,36 @@
+   return action;
+ }
+ 
++/**
++ * `leavePool()` — withdraws your entire principal and removes you from the
++ * tracked participant set in one transaction, so you're never required to
++ * mark "ready" for a future draw again. No encrypted input needed (unlike
++ * `withdraw`): it always takes your whole balance, so there's no amount to
++ * encrypt client-side.
++ */
++export function useLeavePoolAction() {
++  const { address } = useAccount();
++  const { writeContractAsync } = useWriteContract();
++
++  const action = useTxAction(async () => {
++    if (!address) throw new Error('Connect your wallet first.');
++    if (!isContractConfigured) throw new Error('CairnPool has not been deployed yet.');
++    action.setStatus('signing');
++    const hash = await writeContractAsync({
++      address: CAIRN_POOL_ADDRESS as `0x${string}`,
++      abi: CAIRN_POOL_ABI,
++      functionName: 'leavePool',
++      args: [],
++      account: address,
++      chain: sepolia,
++    });
++    action.setTxHash(hash);
++    action.setStatus('submitting');
++  });
++
++  return action;
++}
++
+ /** `requestDrawResolution()` — no drawId/count args; the contract self-sequences. */
+ export function useRequestDrawResolutionAction() {
+   const { address } = useAccount();
+diff -ruN orig/cairn/contracts/CairnPool.sol cairn/contracts/CairnPool.sol
+--- a/contracts/CairnPool.sol	2026-09-03 10:47:33.000000000 +0000
++++ b/contracts/CairnPool.sol	2026-09-05 14:42:02.052579545 +0000
+@@ -133,14 +133,17 @@
+     // cleared for everyone once a draw is actually requested, so each
+     // round requires a fresh, explicit "I'm ready" from everyone again.
+     //
+-    // SCOPE NOTE (honest, not hidden): this requires ALL tracked
+-    // participants to be ready, not a quorum. That's the correct
+-    // trust model for the "wait for the other person" flow this was
+-    // built for, but it does mean one inactive/abandoned wallet can block
+-    // a round indefinitely for everyone else. A real production version
+-    // would likely add a participant-removal path or a ready quorum
+-    // instead of 100% — deliberately not built here to keep this change
+-    // scoped to what was asked for.
++    // SCOPE NOTE: this requires ALL tracked participants to be ready, not
++    // a quorum — the correct trust model for the "wait for the other
++    // person" flow this was built for. The real gap this used to have —
++    // an inactive/abandoned wallet (including the deployer's own, if it
++    // ever deposited even once) blocking a round indefinitely with no way
++    // to exit the tracked set — is fixed by `leavePool()` below: any
++    // participant can fully exit at will, after which they're no longer
++    // counted toward `allParticipantsReady()` at all. The deployer/owner
++    // wallet should never call `deposit()` in the first place (only
++    // `fundYieldSource`, which does not register it as a participant) —
++    // `leavePool()` is the recovery path if it already has.
+     mapping(address => bool) public readyForDraw;
+ 
+     /// @notice How many of the currently-tracked participants are ready right now.
+@@ -284,6 +287,9 @@
+ 
+     event Deposited(address indexed user);
+     event Withdrawn(address indexed user);
++    /// @notice A participant fully exited the pool via `leavePool` — no
++    /// longer tracked, no longer required to be ready for future draws.
++    event LeftPool(address indexed user);
+     event DrawTotalWeightRequested(uint256 indexed drawId, bytes32 totalWeightHandle, uint256 cohortSize);
+     event DrawTotalWeightSubmitted(uint256 indexed drawId, uint64 totalWeight);
+     event DrawResolutionRequested(uint256 indexed drawId, bytes32 winnerHandle, uint256 cohortSize);
+@@ -424,6 +430,47 @@
+         emit Withdrawn(msg.sender);
+     }
+ 
++    /// @notice Fully exit the pool: withdraws your entire encrypted
++    /// principal in the same transaction, then removes you from the
++    /// tracked participant set entirely — unlike `withdraw`, which can
++    /// leave a zero-balance address stuck as a permanent participant
++    /// forever (see the class-level SCOPE NOTE this replaces). After this,
++    /// `allParticipantsReady()`/`requestDrawResolution()` no longer wait on
++    /// you, and a future `deposit()` re-adds you as a brand-new
++    /// participant, same as anyone else's first deposit. Swap-and-pop is
++    /// safe here: participant order is never assumed meaningful anywhere
++    /// else in the contract (draw weight comes from `_principal`, not
++    /// array position).
++    function leavePool() external {
++        require(_isParticipant[msg.sender], "no position");
++
++        euint64 amount = _principal[msg.sender];
++        _principal[msg.sender] = FHE.asEuint64(0);
++        _grantSelf(_principal[msg.sender]);
++
++        FHE.allowTransient(amount, address(CUSDT));
++        CUSDT.confidentialTransfer(msg.sender, amount);
++
++        if (readyForDraw[msg.sender]) {
++            readyForDraw[msg.sender] = false;
++            readyCount -= 1;
++            emit ReadyForDrawChanged(msg.sender, false);
++        }
++
++        uint256 len = _participants.length;
++        for (uint256 i = 0; i < len; i++) {
++            if (_participants[i] == msg.sender) {
++                _participants[i] = _participants[len - 1];
++                _participants.pop();
++                break;
++            }
++        }
++        _isParticipant[msg.sender] = false;
++
++        emit Withdrawn(msg.sender);
++        emit LeftPool(msg.sender);
++    }
++
+     // -----------------------------------------------------------------
+     // Prize reserve — admin-funded (no real yield market exists on Sepolia
+     // for this test token; see the class-level SCOPE NOTE above)
+diff -ruN orig/cairn/.github/workflows/keeper.yml cairn/.github/workflows/keeper.yml
+--- a/.github/workflows/keeper.yml	2026-09-05 10:54:37.000000000 +0000
++++ b/.github/workflows/keeper.yml	2026-09-05 14:45:36.616886797 +0000
+@@ -8,7 +8,7 @@
+ jobs:
+   run-keeper:
+     runs-on: ubuntu-latest
+-    timeout-minutes: 5
++    timeout-minutes: 6
+     steps:
+       - uses: actions/checkout@v4
+ 
+@@ -18,7 +18,18 @@
+ 
+       - run: npm ci
+ 
+-      - run: npm run keeper
++      # A single `npm run keeper` pass only does ONE of the three draw
++      # steps (start / submit-weight / submit-winner) per invocation — a
++      # full draw needs three of them, so on a plain 5-minute cron this
++      # could take up to ~15 minutes wall-clock to fully resolve, which is
++      # what made this look broken during a live two-wallet test. Running
++      # `keeper:watch` (polls every 15s) for most of the 5-minute window
++      # instead means nearly the entire window is spent actively polling,
++      # so a full draw resolves in roughly 15-45 seconds in practice
++      # instead of waiting for the next scheduled tick each step.
++      # `timeout` sends SIGTERM at 280s, comfortably inside the job's
++      # 5-minute limit, so the process exits cleanly before GitHub kills it.
++      - run: timeout 280 npm run keeper:watch || true
+         env:
+           SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
+           KEEPER_PRIVATE_KEY: ${{ secrets.KEEPER_PRIVATE_KEY }}

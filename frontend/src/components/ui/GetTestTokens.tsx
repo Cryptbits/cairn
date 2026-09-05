@@ -20,12 +20,12 @@ export function GetTestTokens({ symbol, context = 'deposit with' }: { symbol: st
         </a>
         <span className="text-text-3 text-[12px]">→</span>
         <a
-          href="https://app.zama.org"
+          href="https://portfolio.zama.org"
           target="_blank"
           rel="noreferrer"
           className="inline-flex items-center gap-[4px] text-[12px] font-medium text-text-1 hover:text-accent-2 transition-colors"
         >
-          2. Shield into {symbol} <ArrowUpRight size={11} strokeWidth={2} />
+          2. Shield into {symbol} (select Sepolia) <ArrowUpRight size={11} strokeWidth={2} />
         </a>
       </div>
     </div>

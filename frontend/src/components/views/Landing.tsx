@@ -41,17 +41,17 @@ export function Landing({ setCurrentView }: LandingProps) {
             <div className="font-d text-[28px] md:text-[32px] font-[560] num text-white">
               {isContractConfigured && participantCount.data !== undefined ? String(participantCount.data) : '–'}
             </div>
-            <div className="text-[11px] font-semibold tracking-wider text-text-3 mt-[6px]">PARTICIPANTS</div>
+            <div className="text-[11px] font-semibold tracking-wider text-text-2 mt-[6px]">PARTICIPANTS</div>
           </div>
           <div className="flex-1 text-center p-[28px_16px] border-r border-bdr-strong">
             <div className="font-d text-[28px] md:text-[32px] font-[560] num text-white">
               {isContractConfigured && nextDrawId.data !== undefined ? String(nextDrawId.data) : '–'}
             </div>
-            <div className="text-[11px] font-semibold tracking-wider text-text-3 mt-[6px]">DRAWS RUN SO FAR</div>
+            <div className="text-[11px] font-semibold tracking-wider text-text-2 mt-[6px]">DRAWS RUN SO FAR</div>
           </div>
           <div className="flex-1 text-center p-[28px_16px]">
             <div className="font-d text-[28px] md:text-[32px] font-[560] num text-text-3">Encrypted</div>
-            <div className="text-[11px] font-semibold tracking-wider text-text-3 mt-[6px]">PRIZE RESERVE</div>
+            <div className="text-[11px] font-semibold tracking-wider text-text-2 mt-[6px]">PRIZE RESERVE</div>
           </div>
         </div>
         {!isContractConfigured && (

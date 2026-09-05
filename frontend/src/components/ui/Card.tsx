@@ -30,7 +30,7 @@ Card.displayName = 'Card';
 
 export function Eyebrow({ children, className = '' }: { children: React.ReactNode, className?: string }) {
   return (
-    <span className={`block text-[11px] uppercase tracking-[0.12em] text-text-3 font-semibold mb-[8px] ${className}`}>
+    <span className={`block text-[11px] uppercase tracking-[0.12em] text-text-2 font-semibold mb-[8px] ${className}`}>
       {children}
     </span>
   );

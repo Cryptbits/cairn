@@ -12,7 +12,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import { isContractConfigured, isCusdtConfigured, CUSDT_ADDRESS } from '../../config/contracts';
 import { useNetworkGuard } from '../../hooks/useNetworkGuard';
-import { useDepositAction, useWithdrawAction, useApproveOperatorAction } from '../../hooks/useCairnActions';
+import { useDepositAction, useWithdrawAction, useApproveOperatorAction, useLeavePoolAction } from '../../hooks/useCairnActions';
 import { useMyPrincipalHandle, useCusdtDecimals, useCusdtSymbol, useIsPoolOperator, useCusdtBalanceHandle } from '../../hooks/useCairnReads';
 import { useSharedDecrypt } from '../../context/DecryptedBalancesContext';
 import { toBaseUnits, fromBaseUnits, displaySymbol } from '../../lib/format';
@@ -39,6 +39,7 @@ export function Deposit() {
   const approveAction = useApproveOperatorAction();
   const depositAction = useDepositAction();
   const withdrawAction = useWithdrawAction();
+  const leavePoolAction = useLeavePoolAction();
   const action = mode === 'deposit' ? depositAction : withdrawAction;
   const principalHandle = useMyPrincipalHandle();
   const walletBalanceHandle = useCusdtBalanceHandle();
@@ -88,6 +89,17 @@ export function Deposit() {
     }
     prevApproveStatus.current = approveAction.status;
   }, [approveAction.status]);
+
+  const prevLeaveStatus = useRef(leavePoolAction.status);
+  useEffect(() => {
+    if (prevLeaveStatus.current !== 'success' && leavePoolAction.status === 'success') {
+      principalHandle.refetch();
+      walletBalanceHandle.refetch();
+      decryptState.reset();
+      walletDecryptState.reset();
+    }
+    prevLeaveStatus.current = leavePoolAction.status;
+  }, [leavePoolAction.status]);
 
   const getTxStatusMode = () => {
     if (action.status === 'success') return 'success';
@@ -280,7 +292,7 @@ export function Deposit() {
                 {needsApproval ? (
                   <>
                     <Callout className="mt-[24px]" variant="primary">
-                      One-time step: authorize Cairn to move your {symbol} before your first deposit.
+                      Authorize Cairn to move your {symbol} before your first deposit.
                     </Callout>
                     <Button className="w-full mt-[24px] h-[52px] text-[15px]" disabled={!isConnected || !isContractConfigured || (isConnected && !isSepolia)} onClick={handleApprove}>
                       {!isConnected ? 'Connect Wallet' : `Approve CairnPool for ${symbol}`}
@@ -294,6 +306,34 @@ export function Deposit() {
                     <Button className="w-full mt-[24px] h-[52px] text-[15px]" disabled={isSubmitting || !isConnected || !isContractConfigured || (isConnected && !isSepolia) || !amount} onClick={handleSubmit}>
                       {!isConnected ? 'Connect Wallet' : mode === 'deposit' ? `Encrypt & deposit` : `Encrypt & withdraw`}
                     </Button>
+                    {mode === 'withdraw' && isConnected && (
+                      leavePoolAction.status !== 'idle' ? (
+                        <div className="mt-[14px]">
+                          <TransactionState
+                            status={leavePoolAction.status === 'success' ? 'success' : leavePoolAction.status === 'failed' || leavePoolAction.status === 'rejected' ? 'error' : 'processing'}
+                            title={
+                              leavePoolAction.status === 'success' ? 'Left the pool'
+                              : leavePoolAction.status === 'failed' || leavePoolAction.status === 'rejected' ? "Didn't go through"
+                              : 'Withdrawing everything and leaving'
+                            }
+                            subtitle={leavePoolAction.status === 'success' ? `Full balance returned. You won't be counted in future draws until you deposit again.` : (leavePoolAction.error ?? 'Confirming…')}
+                            onDismiss={() => leavePoolAction.reset()}
+                            errorAction={() => leavePoolAction.run()}
+                            showEtherscanLink={leavePoolAction.status === 'success'}
+                            txHash={leavePoolAction.txHash}
+                          />
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => leavePoolAction.run()}
+                          disabled={!isContractConfigured || !isSepolia}
+                          className="w-full mt-[14px] text-[12.5px] text-text-2 hover:text-text-1 transition-colors disabled:opacity-40"
+                        >
+                          Leave the pool
+                        </button>
+                      )
+                    )}
                   </>
                 )}
               </motion.div>

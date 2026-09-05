@@ -133,14 +133,17 @@ contract CairnPool is ZamaEthereumConfig {
     // cleared for everyone once a draw is actually requested, so each
     // round requires a fresh, explicit "I'm ready" from everyone again.
     //
-    // SCOPE NOTE (honest, not hidden): this requires ALL tracked
-    // participants to be ready, not a quorum. That's the correct
-    // trust model for the "wait for the other person" flow this was
-    // built for, but it does mean one inactive/abandoned wallet can block
-    // a round indefinitely for everyone else. A real production version
-    // would likely add a participant-removal path or a ready quorum
-    // instead of 100% — deliberately not built here to keep this change
-    // scoped to what was asked for.
+    // SCOPE NOTE: this requires ALL tracked participants to be ready, not
+    // a quorum — the correct trust model for the "wait for the other
+    // person" flow this was built for. The real gap this used to have —
+    // an inactive/abandoned wallet (including the deployer's own, if it
+    // ever deposited even once) blocking a round indefinitely with no way
+    // to exit the tracked set — is fixed by `leavePool()` below: any
+    // participant can fully exit at will, after which they're no longer
+    // counted toward `allParticipantsReady()` at all. The deployer/owner
+    // wallet should never call `deposit()` in the first place (only
+    // `fundYieldSource`, which does not register it as a participant) —
+    // `leavePool()` is the recovery path if it already has.
     mapping(address => bool) public readyForDraw;
 
     /// @notice How many of the currently-tracked participants are ready right now.
@@ -284,6 +287,9 @@ contract CairnPool is ZamaEthereumConfig {
 
     event Deposited(address indexed user);
     event Withdrawn(address indexed user);
+    /// @notice A participant fully exited the pool via `leavePool` — no
+    /// longer tracked, no longer required to be ready for future draws.
+    event LeftPool(address indexed user);
     event DrawTotalWeightRequested(uint256 indexed drawId, bytes32 totalWeightHandle, uint256 cohortSize);
     event DrawTotalWeightSubmitted(uint256 indexed drawId, uint64 totalWeight);
     event DrawResolutionRequested(uint256 indexed drawId, bytes32 winnerHandle, uint256 cohortSize);
@@ -422,6 +428,47 @@ contract CairnPool is ZamaEthereumConfig {
         CUSDT.confidentialTransfer(msg.sender, actual);
 
         emit Withdrawn(msg.sender);
+    }
+
+    /// @notice Fully exit the pool: withdraws your entire encrypted
+    /// principal in the same transaction, then removes you from the
+    /// tracked participant set entirely — unlike `withdraw`, which can
+    /// leave a zero-balance address stuck as a permanent participant
+    /// forever (see the class-level SCOPE NOTE this replaces). After this,
+    /// `allParticipantsReady()`/`requestDrawResolution()` no longer wait on
+    /// you, and a future `deposit()` re-adds you as a brand-new
+    /// participant, same as anyone else's first deposit. Swap-and-pop is
+    /// safe here: participant order is never assumed meaningful anywhere
+    /// else in the contract (draw weight comes from `_principal`, not
+    /// array position).
+    function leavePool() external {
+        require(_isParticipant[msg.sender], "no position");
+
+        euint64 amount = _principal[msg.sender];
+        _principal[msg.sender] = FHE.asEuint64(0);
+        _grantSelf(_principal[msg.sender]);
+
+        FHE.allowTransient(amount, address(CUSDT));
+        CUSDT.confidentialTransfer(msg.sender, amount);
+
+        if (readyForDraw[msg.sender]) {
+            readyForDraw[msg.sender] = false;
+            readyCount -= 1;
+            emit ReadyForDrawChanged(msg.sender, false);
+        }
+
+        uint256 len = _participants.length;
+        for (uint256 i = 0; i < len; i++) {
+            if (_participants[i] == msg.sender) {
+                _participants[i] = _participants[len - 1];
+                _participants.pop();
+                break;
+            }
+        }
+        _isParticipant[msg.sender] = false;
+
+        emit Withdrawn(msg.sender);
+        emit LeftPool(msg.sender);
     }
 
     // -----------------------------------------------------------------

@@ -264,6 +264,36 @@ export function useSetReadyForDrawAction() {
   return action;
 }
 
+/**
+ * `leavePool()` — withdraws your entire principal and removes you from the
+ * tracked participant set in one transaction, so you're never required to
+ * mark "ready" for a future draw again. No encrypted input needed (unlike
+ * `withdraw`): it always takes your whole balance, so there's no amount to
+ * encrypt client-side.
+ */
+export function useLeavePoolAction() {
+  const { address } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+
+  const action = useTxAction(async () => {
+    if (!address) throw new Error('Connect your wallet first.');
+    if (!isContractConfigured) throw new Error('CairnPool has not been deployed yet.');
+    action.setStatus('signing');
+    const hash = await writeContractAsync({
+      address: CAIRN_POOL_ADDRESS as `0x${string}`,
+      abi: CAIRN_POOL_ABI,
+      functionName: 'leavePool',
+      args: [],
+      account: address,
+      chain: sepolia,
+    });
+    action.setTxHash(hash);
+    action.setStatus('submitting');
+  });
+
+  return action;
+}
+
 /** `requestDrawResolution()` — no drawId/count args; the contract self-sequences. */
 export function useRequestDrawResolutionAction() {
   const { address } = useAccount();

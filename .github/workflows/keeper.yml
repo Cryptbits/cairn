@@ -8,7 +8,7 @@ on:
 jobs:
   run-keeper:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
 
@@ -18,7 +18,18 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run keeper
+      # A single `npm run keeper` pass only does ONE of the three draw
+      # steps (start / submit-weight / submit-winner) per invocation — a
+      # full draw needs three of them, so on a plain 5-minute cron this
+      # could take up to ~15 minutes wall-clock to fully resolve, which is
+      # what made this look broken during a live two-wallet test. Running
+      # `keeper:watch` (polls every 15s) for most of the 5-minute window
+      # instead means nearly the entire window is spent actively polling,
+      # so a full draw resolves in roughly 15-45 seconds in practice
+      # instead of waiting for the next scheduled tick each step.
+      # `timeout` sends SIGTERM at 280s, comfortably inside the job's
+      # 5-minute limit, so the process exits cleanly before GitHub kills it.
+      - run: timeout 280 npm run keeper:watch || true
         env:
           SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
           KEEPER_PRIVATE_KEY: ${{ secrets.KEEPER_PRIVATE_KEY }}

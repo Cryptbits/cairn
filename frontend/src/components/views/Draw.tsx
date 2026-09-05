@@ -277,7 +277,7 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
                           disabled={disabledBase || readyAction.status !== 'idle'}
                           className="underline decoration-dotted underline-offset-2 hover:text-text-1 transition-colors disabled:opacity-40"
                         >
-                          not ready anymore?
+                          Not ready
                         </button>
                       </>
                     )}
@@ -286,7 +286,7 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
                 {myReady.data ? (
                   <div className="flex items-center gap-[8px] text-[13px] font-semibold text-accent-2 px-[14px] py-[9px]">
                     <Loader2 className="w-[14px] h-[14px] animate-spin" />
-                    Ready ✓
+                    Ready
                   </div>
                 ) : (
                   <Button
@@ -370,11 +370,7 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
                   );
                 }
                 if (action.status === 'idle') {
-                  // Watch-only for everyone except the owner: the keeper
-                  // bot (scripts/keeper.ts) is the thing that normally
-                  // fetches the verified value and submits it here, on its
-                  // own wallet. See the note above `stage.stageName ===
-                  // 'None'` for why no saver's browser does this anymore.
+                  
                   return (
                     <motion.div key="idle-watch" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-[10px] py-[6px]">
                       <div className="text-center text-[13px] text-text-3">
@@ -422,14 +418,6 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
             <Callout variant="primary">You won this round. Head to Claim to reveal and collect your prize.</Callout>
           )}
         </Card>
-
-        <button
-          type="button"
-          onClick={() => setCurrentView('privacy')}
-          className="self-center text-[12.5px] text-text-3 hover:text-text-1 transition-colors underline decoration-dotted underline-offset-2"
-        >
-          How draw resolution works →
-        </button>
       </div>
     </div>
   );
