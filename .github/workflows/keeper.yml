@@ -1,0 +1,25 @@
+name: Draw Keeper
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # every 5 minutes (GitHub's minimum interval)
+  workflow_dispatch: {}       # lets you trigger it manually anytime, e.g. right before recording your demo video
+
+jobs:
+  run-keeper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - run: npm run keeper
+        env:
+          SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
+          KEEPER_PRIVATE_KEY: ${{ secrets.KEEPER_PRIVATE_KEY }}
+          CAIRN_CONTRACT_ADDRESS: ${{ secrets.CAIRN_CONTRACT_ADDRESS }}
