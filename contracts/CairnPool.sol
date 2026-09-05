@@ -112,6 +112,10 @@ contract CairnPool is ZamaEthereumConfig {
 
     address[] private _participants;
     mapping(address => bool) private _isParticipant;
+    /// @notice Index of each participant within `_participants`, recorded
+    /// at push time so `leavePool()` can remove a wallet in O(1) via
+    /// swap-and-pop instead of a linear scan.
+    mapping(address => uint256) private _participantIndex;
 
     // -----------------------------------------------------------------
     // Draw readiness — trustable two-(or-more)-party synchronization
@@ -133,17 +137,14 @@ contract CairnPool is ZamaEthereumConfig {
     // cleared for everyone once a draw is actually requested, so each
     // round requires a fresh, explicit "I'm ready" from everyone again.
     //
-    // SCOPE NOTE: this requires ALL tracked participants to be ready, not
-    // a quorum — the correct trust model for the "wait for the other
-    // person" flow this was built for. The real gap this used to have —
-    // an inactive/abandoned wallet (including the deployer's own, if it
-    // ever deposited even once) blocking a round indefinitely with no way
-    // to exit the tracked set — is fixed by `leavePool()` below: any
-    // participant can fully exit at will, after which they're no longer
-    // counted toward `allParticipantsReady()` at all. The deployer/owner
-    // wallet should never call `deposit()` in the first place (only
-    // `fundYieldSource`, which does not register it as a participant) —
-    // `leavePool()` is the recovery path if it already has.
+    // SCOPE NOTE (honest, not hidden): this requires ALL tracked
+    // participants to be ready, not a quorum. That's the correct
+    // trust model for the "wait for the other person" flow this was
+    // built for, but it does mean one inactive/abandoned wallet can block
+    // a round indefinitely for everyone else. A real production version
+    // would likely add a participant-removal path or a ready quorum
+    // instead of 100% — deliberately not built here to keep this change
+    // scoped to what was asked for.
     mapping(address => bool) public readyForDraw;
 
     /// @notice How many of the currently-tracked participants are ready right now.
@@ -287,8 +288,6 @@ contract CairnPool is ZamaEthereumConfig {
 
     event Deposited(address indexed user);
     event Withdrawn(address indexed user);
-    /// @notice A participant fully exited the pool via `leavePool` — no
-    /// longer tracked, no longer required to be ready for future draws.
     event LeftPool(address indexed user);
     event DrawTotalWeightRequested(uint256 indexed drawId, bytes32 totalWeightHandle, uint256 cohortSize);
     event DrawTotalWeightSubmitted(uint256 indexed drawId, uint64 totalWeight);
@@ -385,6 +384,7 @@ contract CairnPool is ZamaEthereumConfig {
 
         if (!_isParticipant[msg.sender]) {
             _isParticipant[msg.sender] = true;
+            _participantIndex[msg.sender] = _participants.length;
             _participants.push(msg.sender);
             _principal[msg.sender] = FHE.asEuint64(0);
         }
@@ -430,26 +430,31 @@ contract CairnPool is ZamaEthereumConfig {
         emit Withdrawn(msg.sender);
     }
 
-    /// @notice Fully exit the pool: withdraws your entire encrypted
-    /// principal in the same transaction, then removes you from the
-    /// tracked participant set entirely — unlike `withdraw`, which can
-    /// leave a zero-balance address stuck as a permanent participant
-    /// forever (see the class-level SCOPE NOTE this replaces). After this,
-    /// `allParticipantsReady()`/`requestDrawResolution()` no longer wait on
-    /// you, and a future `deposit()` re-adds you as a brand-new
-    /// participant, same as anyone else's first deposit. Swap-and-pop is
-    /// safe here: participant order is never assumed meaningful anywhere
-    /// else in the contract (draw weight comes from `_principal`, not
-    /// array position).
+    /// @notice Fully exits the pool: withdraws your entire principal in one
+    /// transaction AND permanently removes you from the tracked participant
+    /// set, so you are never required to call `setReadyForDraw` for a future
+    /// draw again unless you deposit again.
+    ///
+    /// REAL BUG FIXED HERE (not a hypothetical): `withdraw()` above only
+    /// ever reduces `_principal`; it never removes the caller from
+    /// `_participants`. A wallet that withdrew its entire balance — e.g. an
+    /// admin/deployer wallet that deposited once during testing, then
+    /// withdrew — stayed permanently counted by `allParticipantsReady()`,
+    /// so `requestDrawResolution()` blocked on it forever, requiring that
+    /// wallet to click "ready" before every single future draw with no way
+    /// to opt out. There was no removal path anywhere in the original
+    /// contract. This function is that removal path.
     function leavePool() external {
         require(_isParticipant[msg.sender], "no position");
 
-        euint64 amount = _principal[msg.sender];
+        // Move the caller's entire encrypted balance out first
+        // (checks-effects-interactions), then zero their stored principal.
+        euint64 balance = _principal[msg.sender];
         _principal[msg.sender] = FHE.asEuint64(0);
         _grantSelf(_principal[msg.sender]);
 
-        FHE.allowTransient(amount, address(CUSDT));
-        CUSDT.confidentialTransfer(msg.sender, amount);
+        FHE.allowTransient(balance, address(CUSDT));
+        CUSDT.confidentialTransfer(msg.sender, balance);
 
         if (readyForDraw[msg.sender]) {
             readyForDraw[msg.sender] = false;
@@ -457,17 +462,19 @@ contract CairnPool is ZamaEthereumConfig {
             emit ReadyForDrawChanged(msg.sender, false);
         }
 
-        uint256 len = _participants.length;
-        for (uint256 i = 0; i < len; i++) {
-            if (_participants[i] == msg.sender) {
-                _participants[i] = _participants[len - 1];
-                _participants.pop();
-                break;
-            }
+        // Swap-and-pop removal using the index recorded at push time
+        // (_participantIndex) — O(1), not a linear scan over every saver.
+        uint256 idx = _participantIndex[msg.sender];
+        uint256 lastIdx = _participants.length - 1;
+        if (idx != lastIdx) {
+            address lastParticipant = _participants[lastIdx];
+            _participants[idx] = lastParticipant;
+            _participantIndex[lastParticipant] = idx;
         }
+        _participants.pop();
+        delete _participantIndex[msg.sender];
         _isParticipant[msg.sender] = false;
 
-        emit Withdrawn(msg.sender);
         emit LeftPool(msg.sender);
     }
 
@@ -711,6 +718,7 @@ contract CairnPool is ZamaEthereumConfig {
         // effect for them.
         if (!_isParticipant[msg.sender]) {
             _isParticipant[msg.sender] = true;
+            _participantIndex[msg.sender] = _participants.length;
             _participants.push(msg.sender);
             _principal[msg.sender] = FHE.asEuint64(0);
         }

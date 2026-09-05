@@ -57,7 +57,7 @@ function isBusy(status: string) {
 export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void }) {
   const { isConnected, address } = useAccount();
   const { isSepolia, switchToSepolia, isSwitching } = useNetworkGuard();
-  const { drawId, setDrawId, isLive, goLive } = useDrawId();
+  const { drawId } = useDrawId();
 
   const stage = useDrawStage(drawId);
   const cohortSize = useDrawCohortSize(drawId);
@@ -71,7 +71,6 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
   const myReady = useIsReadyForDraw();
   const readyCount = useReadyCount();
   const owner = useOwner();
-
   const isOwner = isConnected && !!owner.data && !!address && (owner.data as string).toLowerCase() === address.toLowerCase();
 
   const requestAction = useRequestDrawResolutionAction();
@@ -171,28 +170,12 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
         )}
 
         <Card className="bg-[#12100C]">
-          <div className="flex items-center justify-between mb-[20px] gap-[12px]">
-            <div className="flex items-center gap-[8px]">
-              <Eyebrow className="mb-0">Draw number</Eyebrow>
-              <input
-                type="number"
-                min={0}
-                value={drawId.toString()}
-                onChange={(e) => setDrawId(BigInt(Math.max(0, Number(e.target.value) || 0)))}
-                onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                aria-label="Draw number, automatically set to the current draw, editable to check a past one"
-                className="w-[56px] bg-surface-2 border border-bdr-strong rounded-[8px] px-[8px] py-[3px] text-[13px] font-semibold text-white num outline-none focus:border-accent-2/50"
-                title="Automatically set to the current draw. Change it to check a past draw."
-              />
-              {!isLive && (
-                <button
-                  type="button"
-                  onClick={goLive}
-                  className="text-[11.5px] font-semibold text-accent-2 hover:text-accent-2/80 underline decoration-dotted underline-offset-2 transition-colors"
-                >
-                  Back to live round
-                </button>
-              )}
+          <div className="flex items-center justify-between mb-[24px] gap-[12px]">
+            <div>
+              <Eyebrow className="mb-0">Current round</Eyebrow>
+              <div className="font-d text-[32px] md:text-[38px] font-[560] num text-white leading-none mt-[6px]">
+                {drawId.toString()}
+              </div>
             </div>
           </div>
 
@@ -277,7 +260,7 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
                           disabled={disabledBase || readyAction.status !== 'idle'}
                           className="underline decoration-dotted underline-offset-2 hover:text-text-1 transition-colors disabled:opacity-40"
                         >
-                          Not ready
+                        
                         </button>
                       </>
                     )}
@@ -333,9 +316,9 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
                       {!isConnected
                         ? 'Connect your wallet to mark yourself ready.'
                         : eligible.data === true
-                          ? 'Everyone is ready. The keeper bot starts the draw automatically — usually within a minute.'
+                          ? 'Everyone is ready. The keeper bot starts the draw automatically usually within a minute.'
                           : Number(participantCount.data ?? 0) < Number(minCohort.data ?? 0)
-                            ? `Needs ${minCohort.data !== undefined ? String(minCohort.data) : 'more'} savers before a draw can start.`
+                            ? `Needs atleast ${minCohort.data !== undefined ? String(minCohort.data) : 'more'} savers before a draw can start.`
                             : 'The draw starts automatically the moment every saver here is ready.'}
                     </div>
                     {/* Owner-only fallback for when the keeper bot is
@@ -370,7 +353,7 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
                   );
                 }
                 if (action.status === 'idle') {
-                  
+
                   return (
                     <motion.div key="idle-watch" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-[10px] py-[6px]">
                       <div className="text-center text-[13px] text-text-3">
@@ -417,7 +400,23 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
           {stage.stageName === 'Resolved' && isMyWin && claimed.data === false && (
             <Callout variant="primary">You won this round. Head to Claim to reveal and collect your prize.</Callout>
           )}
+
+          {stage.stageName === 'Resolved' && (
+            <div className="flex items-center gap-[10px] mt-[16px] p-[14px_16px] rounded-[14px] bg-surface-2 border border-bdr">
+              <Loader2 className="w-[15px] h-[15px] text-text-2 animate-spin shrink-0" />
+              <span className="text-[13px] text-text-2">
+                This round is complete.
+              </span>
+            </div>
+          )}
         </Card>
+
+        <button
+          type="button"
+          onClick={() => setCurrentView('privacy')}
+          className="self-center text-[12.5px] text-text-3 hover:text-text-1 transition-colors underline decoration-dotted underline-offset-2"
+        >
+        </button>
       </div>
     </div>
   );

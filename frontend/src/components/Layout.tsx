@@ -36,11 +36,6 @@ export function Layout({ currentView, setCurrentView, children }: LayoutProps) {
     { id: 'deposit', label: 'Deposit / Withdraw', mobileLabel: 'Deposit', icon: ArrowDownCircle },
     { id: 'draw', label: 'Draw', icon: Trophy },
     { id: 'result', label: 'Claim', icon: CheckCircle2 },
-    // Desktop sidebar keeps Shield (it's genuinely the "Privacy Center"
-    // there, next to its own label). On mobile this collapses to a bare
-    // "More" tab, where a shield reads as a security toggle rather than
-    // what it actually opens — a documentation/explainer page — so that
-    // tab gets its own, docs-appropriate icon instead of reusing Shield.
     { id: 'privacy', label: 'Privacy Center', mobileLabel: 'More', icon: Shield, mobileIcon: BookOpen, groupLabel: 'Learn' },
     ...(isOwner ? [{ id: 'admin' as ViewType, label: 'Fund yield source', icon: Wrench, groupLabel: 'Owner tools' }] : []),
   ];

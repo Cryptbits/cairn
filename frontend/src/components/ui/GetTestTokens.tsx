@@ -1,6 +1,7 @@
 import React from 'react';
 import { Droplet, ArrowUpRight } from 'lucide-react';
 
+
 export function GetTestTokens({ symbol, context = 'deposit with' }: { symbol: string; context?: string }) {
   return (
     <div className="flex items-center gap-[12px] w-full p-[12px_16px] rounded-[14px] bg-surface-2 border border-bdr">
@@ -16,16 +17,16 @@ export function GetTestTokens({ symbol, context = 'deposit with' }: { symbol: st
           rel="noreferrer"
           className="inline-flex items-center gap-[4px] text-[12px] font-medium text-text-1 hover:text-accent-2 transition-colors"
         >
-          1. Mint test USDT <ArrowUpRight size={11} strokeWidth={2} />
+          Mint test USDT <ArrowUpRight size={11} strokeWidth={2} />
         </a>
-        <span className="text-text-3 text-[12px]">→</span>
+        <span className="text-text-3 text-[12px]">&</span>
         <a
           href="https://portfolio.zama.org"
           target="_blank"
           rel="noreferrer"
           className="inline-flex items-center gap-[4px] text-[12px] font-medium text-text-1 hover:text-accent-2 transition-colors"
         >
-          2. Shield into {symbol} (select Sepolia) <ArrowUpRight size={11} strokeWidth={2} />
+          Shield into {symbol} (Sepolia) <ArrowUpRight size={11} strokeWidth={2} />
         </a>
       </div>
     </div>

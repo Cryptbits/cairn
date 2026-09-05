@@ -114,7 +114,7 @@ export function Deposit() {
     if (action.status === 'preparing') return 'Encrypting your amount';
     if (action.status === 'signing') return 'Awaiting wallet signature';
     if (action.status === 'submitting') return 'Submitting transaction';
-    return 'Confirming on chain';
+    return 'Confirming onchain';
   };
 
   const getSubtitle = () => {
@@ -176,7 +176,7 @@ export function Deposit() {
     if (pendingPctRef.current !== null && activeDecrypt.status === 'error') {
       pendingPctRef.current = null;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [activeDecrypt.status, activeDecrypt.value]);
 
   return (
@@ -292,7 +292,7 @@ export function Deposit() {
                 {needsApproval ? (
                   <>
                     <Callout className="mt-[24px]" variant="primary">
-                      Authorize Cairn to move your {symbol} before your first deposit.
+                     Authorize Cairn to move your {symbol} before your first deposit.
                     </Callout>
                     <Button className="w-full mt-[24px] h-[52px] text-[15px]" disabled={!isConnected || !isContractConfigured || (isConnected && !isSepolia)} onClick={handleApprove}>
                       {!isConnected ? 'Connect Wallet' : `Approve CairnPool for ${symbol}`}
@@ -301,11 +301,12 @@ export function Deposit() {
                 ) : (
                   <>
                     <Callout className="mt-[24px]" variant="primary">
-                      Your {mode} amount is encrypted before it ever leaves your browser. Not even Cairn can see the amount.
+                      Your {mode} amount is encrypted before it ever leaves your browser.
                     </Callout>
                     <Button className="w-full mt-[24px] h-[52px] text-[15px]" disabled={isSubmitting || !isConnected || !isContractConfigured || (isConnected && !isSepolia) || !amount} onClick={handleSubmit}>
                       {!isConnected ? 'Connect Wallet' : mode === 'deposit' ? `Encrypt & deposit` : `Encrypt & withdraw`}
                     </Button>
+                    
                     {mode === 'withdraw' && isConnected && (
                       leavePoolAction.status !== 'idle' ? (
                         <div className="mt-[14px]">
@@ -330,7 +331,7 @@ export function Deposit() {
                           disabled={!isContractConfigured || !isSepolia}
                           className="w-full mt-[14px] text-[12.5px] text-text-2 hover:text-text-1 transition-colors disabled:opacity-40"
                         >
-                          Leave the pool
+                       
                         </button>
                       )
                     )}

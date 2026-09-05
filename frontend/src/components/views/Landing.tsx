@@ -47,7 +47,7 @@ export function Landing({ setCurrentView }: LandingProps) {
             <div className="font-d text-[28px] md:text-[32px] font-[560] num text-white">
               {isContractConfigured && nextDrawId.data !== undefined ? String(nextDrawId.data) : '–'}
             </div>
-            <div className="text-[11px] font-semibold tracking-wider text-text-2 mt-[6px]">DRAWS RUN SO FAR</div>
+            <div className="text-[11px] font-semibold tracking-wider text-text-2 mt-[6px]">DRAWS COMPLETED</div>
           </div>
           <div className="flex-1 text-center p-[28px_16px]">
             <div className="font-d text-[28px] md:text-[32px] font-[560] num text-text-3">Encrypted</div>
@@ -63,7 +63,7 @@ export function Landing({ setCurrentView }: LandingProps) {
             <Tag variant="encrypted">Encrypted</Tag>
             <h3 className="font-d font-[560] text-[20px] mt-[16px] mb-[10px] text-text-1">What Cairn protects</h3>
             <p className="text-text-2 text-[14px] leading-[1.7]">
-              Every deposit and every balance is encrypted onchain. Never visible to other savers, never visible to us.
+              Every deposit and every balance is encrypted on chain. Never visible to other savers, never visible to us.
             </p>
           </Card>
           <Card className="bg-[#12100C]">

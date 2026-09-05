@@ -15,13 +15,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<ViewType>('landing');
 
   return (
-    // BUG FIX: every motion.div across the app was animating unconditionally
-    // — no accessibility affordance for prefers-reduced-motion existed
-    // anywhere, despite that being a real, standard accessibility
-    // requirement. `reducedMotion="user"` makes Framer Motion respect the
-    // OS-level setting globally, automatically disabling/simplifying
-    // transitions for anyone who has it on, with zero changes needed to any
-    // individual animation.
+
     <MotionConfig reducedMotion="user">
       <Layout currentView={currentView} setCurrentView={setCurrentView}>
         {currentView === 'landing' && <Landing setCurrentView={setCurrentView} />}

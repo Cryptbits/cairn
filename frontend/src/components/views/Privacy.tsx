@@ -97,7 +97,7 @@ export function Privacy() {
           <Eyebrow>How a draw resolves</Eyebrow>
           <p className="text-[13.5px] text-text-2 leading-relaxed mt-[12px] max-w-[600px]">
             Cairn runs on Zama's FHEVM, so the contract computes directly over encrypted values. It never needs to decrypt anyone's
-            balance to total up weight or pick a winner. Advancing a round is automated by a keeper bot, and the same onchain functions stay permissionless as a documented fallback — no saver is ever asked to pay gas advancing a draw on everyone else's behalf. Only the winning address becomes public once a round resolves.
+            balance to total up weight or pick a winner. Advancing a round is automated by a keeper bot, and the same on-chain functions stay permissionless as a documented fallback — no saver is ever asked to pay gas advancing a draw on everyone else's behalf. Only the winning address becomes public once a round resolves.
           </p>
 
           <div className="flex flex-col gap-[10px] mt-[20px]">
@@ -128,7 +128,8 @@ export function Privacy() {
             </div>
             <p className="text-[13.5px] text-text-2 leading-relaxed flex-1">
               Each round's prize is computed automatically from that percentage of the round's real, verified total draw weight, paid
-              out of a reserve the contract owner funds ahead of time. It's a testnet-illustrative rate and no one decides a prize by hand round to round, and a draw can never pay out more than what's actually funded.
+              out of a reserve the contract owner funds ahead of time. The mechanism itself is
+              genuine, no one decides a prize by hand round to round, and a draw can never pay out more than what's actually funded.
             </p>
           </div>
         </Card>
