@@ -5,7 +5,7 @@ import { Callout } from '../ui/Callout';
 import { TransactionState } from '../ui/TransactionState';
 import { NotDeployedNotice, WrongNetworkNotice } from '../ui/ContractStatusNotice';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2, CheckCircle2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import { isContractConfigured } from '../../config/contracts';
 import { useNetworkGuard } from '../../hooks/useNetworkGuard';
@@ -22,6 +22,7 @@ import {
   useIsReadyForDraw,
   useReadyCount,
   useOwner,
+  useCompletedDrawCount,
 } from '../../hooks/useCairnReads';
 import {
   useRequestDrawResolutionAction,
@@ -64,6 +65,7 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
   const readyCount = useReadyCount();
   const owner = useOwner();
   const isOwner = isConnected && !!owner.data && !!address && (owner.data as string).toLowerCase() === address.toLowerCase();
+  const completedDraws = useCompletedDrawCount();
 
   const requestAction = useRequestDrawResolutionAction();
   const submitWeightAction = useSubmitTotalWeightAction();
@@ -91,7 +93,6 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
     if (myReady.data) return; 
     readyAction.run(true);
   };
-  const handleUnready = () => readyAction.run(false);
   const handleSubmitWeight = () => {
     const handle = pendingWeightHandle.data as `0x${string}` | undefined;
     if (!handle) return;
@@ -164,11 +165,16 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
         <Card className="bg-[#12100C]">
           <div className="flex items-center justify-between mb-[24px] gap-[12px]">
             <div>
-              <Eyebrow className="mb-0">Current round</Eyebrow>
+              <Eyebrow className="mb-0">Rounds completed</Eyebrow>
               <div className="font-d text-[32px] md:text-[38px] font-[560] num text-white leading-none mt-[6px]">
-                {drawId.toString()}
+                {completedDraws.data !== undefined ? completedDraws.data.toString() : '–'}
               </div>
             </div>
+            {stage.stageName !== 'None' && (
+              <span className="text-[12px] font-semibold text-text-2 bg-surface-2 border border-bdr rounded-full px-[12px] py-[6px] shrink-0">
+                {stage.stageName === 'Resolved' ? `Last round · #${drawId.toString()}` : `Round #${drawId.toString()} live`}
+              </span>
+            )}
           </div>
 
           <div className="flex items-end justify-center gap-[4px] h-[140px] py-[10px] mt-[16px] mb-[32px] overflow-hidden border-b border-bdr relative">
@@ -187,8 +193,50 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
             ))}
           </div>
 
-          <div className="flex flex-col bg-surface-2 p-[16px_20px] rounded-[16px] border border-bdr">
-            <div className="flex flex-col gap-[8px]">
+          {/* History, clearly labeled as such — a wallet that just connected
+              for the first time should never mistake the last winner for
+              anything to do with the round it's about to join. Only shown
+              once a round has actually resolved, and never reused once a
+              new round is underway (it reads off `drawId`/`stage`, which
+              move on together the moment the next round is requested). */}
+          {stage.stageName === 'Resolved' && (
+            <div className="flex flex-col gap-[8px] bg-surface-2/60 p-[16px_20px] rounded-[16px] border border-dashed border-bdr mb-[12px]">
+              <div className="flex items-center justify-between py-[4px]">
+                <span className="text-[13px] text-text-3">Winner</span>
+                <span className="text-[13px] font-mono font-semibold tracking-wider text-text-2">
+                  {winner.data && !isZeroAddr ? shortAddr(winner.data as string) : '–'}
+                  {isMyWin && <span className="ml-[8px] text-accent-2">(you!)</span>}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-[4px]">
+                <span className="text-[13px] text-text-3">Savers in that round</span>
+                <span className="text-[13px] font-semibold num text-text-2">
+                  {cohortSize.data !== undefined ? String(cohortSize.data) : '–'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-[4px]">
+                <span className="text-[13px] text-text-3">Prize claimed</span>
+                <span className="text-[13px] font-semibold text-text-2">{claimed.data ? 'Yes' : 'Not yet'}</span>
+              </div>
+              <div className="pt-[10px] mt-[4px] border-t border-bdr">
+                {isMyWin ? (
+                  <span className="text-[14px] font-semibold text-accent-2">
+                    Congratulations, you won this round{claimed.data === false ? '. Head to Claim to reveal and collect your prize.' : '. Prize claimed.'}
+                  </span>
+                ) : (
+                  <span className="text-[14px] font-semibold text-text-2">
+                    {isConnected && winner.data && !isZeroAddr ? `You didn't win this time.` : 'This round has closed.'}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Live stats for the round actually resolving right now — only
+              rendered while one genuinely is, so it can never show a
+              previous round's numbers dressed up as current ones. */}
+          {(stage.stageName === 'TotalWeightRequested' || stage.stageName === 'WinnerRequested') && (
+            <div className="flex flex-col gap-[8px] bg-surface-2 p-[16px_20px] rounded-[16px] border border-bdr">
               <div className="flex items-center justify-between py-[6px]">
                 <span className="text-[14px] text-text-2">Live status</span>
                 <AnimatePresence mode="popLayout">
@@ -197,7 +245,7 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
-                    className={`text-[14px] font-semibold ${phase === 3 ? 'text-positive' : 'text-white'}`}
+                    className="text-[14px] font-semibold text-white"
                   >
                     {isContractConfigured ? liveStatus : '–'}
                   </motion.span>
@@ -206,80 +254,40 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
               <div className="flex items-center justify-between py-[6px]">
                 <span className="text-[14px] text-text-2">Savers in this round</span>
                 <span className="text-[14px] font-semibold num text-white">
-                  {cohortSize.data !== undefined && Number(cohortSize.data) > 0 ? String(cohortSize.data) : (participantCount.data !== undefined ? String(participantCount.data) : '–')}
+                  {cohortSize.data !== undefined ? String(cohortSize.data) : '–'}
                 </span>
               </div>
-              <div className="flex items-center justify-between py-[6px]">
-                <span className="text-[14px] text-text-2">Winner</span>
-                <span className="text-[13px] font-mono font-semibold tracking-wider text-white">
-                  {winner.data && !isZeroAddr ? shortAddr(winner.data as string) : '–'}
-                  {isMyWin && <span className="ml-[8px] text-accent-2">(you!)</span>}
-                </span>
-              </div>
-              {stage.stageName === 'Resolved' && (
-                <div className="flex items-center justify-between py-[6px]">
-                  <span className="text-[14px] text-text-2">Prize claimed</span>
-                  <span className="text-[14px] font-semibold text-white">{claimed.data ? 'Yes' : 'Not yet'}</span>
-                </div>
-              )}
             </div>
+          )}
 
-            {/* Result line — same box, same rhythm, wording branches on
-                whether the connected wallet is the one who won. No separate
-                callout, no separate card: this is a continuation of the
-                stats above, just below a divider. */}
-            {stage.stageName === 'Resolved' && (
-              <div className="flex items-center gap-[10px] pt-[14px] mt-[8px] border-t border-bdr">
-                {isMyWin ? (
-                  <span className="text-[14px] font-semibold text-accent-2">
-                    Congratulations, you won this round{claimed.data === false ? '. Head to Claim to reveal and collect your prize.' : '. Prize claimed.'}
-                  </span>
-                ) : (
-                  <>
-                    <span className="text-[14px] font-semibold text-accent-2">
-                      {isConnected && winner.data && !isZeroAddr
-                        ? `You didn't win this time`
-                        : 'This round has closed.'}
-                    </span>
-                  </>
-                )}
+          {/* Real, on-chain "I'm ready" toggle (setReadyForDraw). This is
+              what makes the draw a genuine multi-party synchronization
+              instead of a single click: requestDrawResolution() hard-
+              reverts on-chain until every tracked participant has this on.
+              Starting the draw itself is the keeper bot's job (see
+              scripts/keeper.ts) — no saver, including this one, is ever
+              asked to sign that transaction. Shown for 'None' (no draw has
+              ever run) and 'Resolved' (the last one has, next one hasn't
+              been requested yet) — deliberately never mixed with the
+              history box above, so this always reads as "join the next
+              round", never "here's what already happened". */}
+          {(stage.stageName === 'None' || stage.stageName === 'Resolved') && (
+            <div className="flex flex-col gap-[8px] bg-surface-2 p-[16px_20px] rounded-[16px] border border-bdr">
+              <div className="flex items-center justify-between py-[6px]">
+                <span className="text-[14px] text-text-2">Savers in the pool</span>
+                <span className="text-[14px] font-semibold num text-white">
+                  {participantCount.data !== undefined ? String(participantCount.data) : '–'}
+                </span>
               </div>
-            )}
-
-            {/* Real, on-chain "I'm ready" toggle (setReadyForDraw). This is
-                what makes the draw a genuine multi-party synchronization
-                instead of a single click: requestDrawResolution() hard-
-                reverts on-chain until every tracked participant has this
-                on. Once you're ready, the button becomes a plain status —
-                no re-click, no second "un-ready" transaction by accident.
-                Starting the draw itself is the keeper bot's job (see
-                scripts/keeper.ts) — no saver, including this one, is ever
-                asked to sign that transaction. Shown for 'None' (first
-                round) and 'Resolved' (next round hasn't been requested
-                yet) — same box, divider above, no separate card. */}
-            {(stage.stageName === 'None' || stage.stageName === 'Resolved') && (
               <div className="flex items-center justify-between gap-[12px] pt-[14px] mt-[8px] border-t border-bdr">
                 <div>
                   <div className="text-[13px] font-semibold text-white">
-                    {myReady.data ? 'Waiting on the rest of the pool…' : 'NEW DRAW'}
+                    {myReady.data ? 'Waiting on the rest of the pool…' : 'Ready for the next round'}
                   </div>
                   <div className="text-[12.5px] text-text-2 mt-[2px]">
                     {readyCount.data !== undefined && participantCount.data !== undefined
-                      ? `${String(readyCount.data)} of ${String(participantCount.data)} `
+                      ? `${String(readyCount.data)} of ${String(participantCount.data)} ready`
                       : 'Checking who\u2019s currently in the pool…'}
-                    {myReady.data && Number(participantCount.data ?? 0) > Number(readyCount.data ?? 0) && (
-                      <>
-                        {' · '}
-                        <button
-                          type="button"
-                          onClick={handleUnready}
-                          disabled={disabledBase || readyAction.status !== 'idle'}
-                          className="underline decoration-dotted underline-offset-2 hover:text-text-1 transition-colors disabled:opacity-40"
-                        >
-                        
-                        </button>
-                      </>
-                    )}
                   </div>
                 </div>
                 {myReady.data ? (
@@ -298,8 +306,8 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
                   </Button>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {(stage.stageName === 'None' || stage.stageName === 'Resolved') && (
             <>
@@ -418,13 +426,6 @@ export function Draw({ setCurrentView }: { setCurrentView: (v: ViewType) => void
           )}
 
         </Card>
-
-        <button
-          type="button"
-          onClick={() => setCurrentView('privacy')}
-          className="self-center text-[12.5px] text-text-3 hover:text-text-1 transition-colors underline decoration-dotted underline-offset-2"
-        >
-        </button>
       </div>
     </div>
   );

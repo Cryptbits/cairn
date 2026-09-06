@@ -1,9 +1,11 @@
 name: Draw Keeper
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"   # every 5 minutes (GitHub's minimum interval)
-  workflow_dispatch: {}       # lets you trigger it manually anytime, e.g. right before recording your demo video
+  workflow_dispatch: {}
+
+concurrency:
+  group: draw-keeper
+  cancel-in-progress: false
 
 jobs:
   run-keeper:
@@ -18,16 +20,7 @@ jobs:
 
       - run: npm ci
 
-      # A single `npm run keeper` pass only does ONE of the three sequential
-      # draw steps (start -> submit-weight-and-draw-winner -> submit-winner).
-      # On a plain 5-minute cron, a full draw could take up to ~15 minutes
-      # wall-clock to fully resolve (three separate 5-minute-apart ticks) —
-      # which looks exactly like "the keeper isn't working" if you're
-      # watching live. Running keeper:watch (15s poll) for most of this
-      # job's window instead means a full draw resolves in well under a
-      # minute once eligible, not up to 15. `timeout` (not the script itself)
-      # bounds it so the job exits cleanly before GitHub's own 5-minute
-      # per-job ceiling, rather than being hard-killed mid-transaction.
+    
       - run: timeout 260 npm run keeper:watch || true
         env:
           SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}

@@ -129,6 +129,31 @@ export function useDrawStage(drawId: bigint) {
   return { ...result, stageIndex, stageName };
 }
 
+/**
+ * Rounds actually resolved to a winner. `nextDrawId` counts draws
+ * *requested* (see useNextDrawId above), which is one too many while the
+ * latest draw is still in flight (TotalWeightRequested/WinnerRequested) —
+ * it only equals "completed" once that latest draw has resolved. This is
+ * the single source of truth both Landing.tsx and Draw.tsx read from, so
+ * the two screens can never show two different numbers for the same thing
+ * again.
+ */
+export function useCompletedDrawCount() {
+  const nextDrawId = useNextDrawId();
+  const next = nextDrawId.data as bigint | undefined;
+  const latestId = next !== undefined && next > 0n ? next - 1n : 0n;
+  const latestStage = useDrawStage(latestId);
+  const hasAnyDraw = next !== undefined && next > 0n;
+  const data = !hasAnyDraw
+    ? 0n
+    : latestStage.stageName === 'Resolved'
+      ? latestId
+      : latestId > 0n
+        ? latestId - 1n
+        : 0n;
+  return { data, isLoading: nextDrawId.isLoading || latestStage.isLoading };
+}
+
 export function useResolvedWinner(drawId: bigint) {
   return useReadContract({ ...pool, functionName: 'resolvedWinner', args: [drawId], query: { enabled: isContractConfigured, refetchInterval: DRAW_POLL_MS } });
 }

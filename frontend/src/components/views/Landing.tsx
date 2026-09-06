@@ -5,7 +5,7 @@ import { Tag } from '../ui/Tag';
 import { Card } from '../ui/Card';
 import { motion } from 'motion/react';
 import { isContractConfigured } from '../../config/contracts';
-import { useParticipantCount, useNextDrawId } from '../../hooks/useCairnReads';
+import { useParticipantCount, useCompletedDrawCount } from '../../hooks/useCairnReads';
 
 interface LandingProps {
   setCurrentView: (v: ViewType) => void;
@@ -13,7 +13,7 @@ interface LandingProps {
 
 export function Landing({ setCurrentView }: LandingProps) {
   const participantCount = useParticipantCount();
-  const nextDrawId = useNextDrawId();
+  const completedDraws = useCompletedDrawCount();
 
   return (
     <motion.div className="w-full flex flex-col min-h-screen" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6 }}>
@@ -45,7 +45,7 @@ export function Landing({ setCurrentView }: LandingProps) {
           </div>
           <div className="flex-1 text-center p-[28px_16px] border-r border-bdr-strong">
             <div className="font-d text-[28px] md:text-[32px] font-[560] num text-white">
-              {isContractConfigured && nextDrawId.data !== undefined ? String(nextDrawId.data) : '–'}
+              {isContractConfigured && completedDraws.data !== undefined ? String(completedDraws.data) : '–'}
             </div>
             <div className="text-[11px] font-semibold tracking-wider text-text-2 mt-[6px]">DRAWS COMPLETED</div>
           </div>
