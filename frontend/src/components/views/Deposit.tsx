@@ -17,6 +17,7 @@ import { useMyPrincipalHandle, useCusdtDecimals, useCusdtSymbol, useIsPoolOperat
 import { useSharedDecrypt } from '../../context/DecryptedBalancesContext';
 import { toBaseUnits, fromBaseUnits, displaySymbol } from '../../lib/format';
 
+/** Quick-amount presets as a fraction of the revealed balance — 100% is exact (no rounding loss). */
 const QUICK_AMOUNTS = [
   { label: '25%', pct: 0.25 },
   { label: '50%', pct: 0.5 },
@@ -44,7 +45,10 @@ export function Deposit() {
   const principalHandle = useMyPrincipalHandle();
   const walletBalanceHandle = useCusdtBalanceHandle();
   const decryptState = useSharedDecrypt(principalHandle.data as `0x${string}` | undefined);
-
+  // Wallet cUSDT balance is ACL-scoped to the cUSDT token contract, not
+  // CairnPool — decrypting it against the wrong contract address made the
+  // relayer reject a legitimate owner as unauthorized. See
+  // context/DecryptedBalancesContext.tsx.
   const walletDecryptState = useSharedDecrypt(walletBalanceHandle.data as `0x${string}` | undefined, CUSDT_ADDRESS as string);
 
   const needsApproval = mode === 'deposit' && isCusdtConfigured && isOperator.data === false;
@@ -55,6 +59,13 @@ export function Deposit() {
     approveAction.run(30);
   };
 
+  // CairnPool.withdraw() clamps to min(requested, principal) instead of
+  // reverting on an over-request (a deliberate anti-side-channel design —
+  // reverting on "insufficient balance" would leak whether the guess was
+  // too high). That means what actually left the contract can be less
+  // than what the user typed. We snapshot the last-revealed principal at
+  // submit time (decryptState resets right after success) so the success
+  // card can tell the truth instead of echoing the typed amount.
   const lastRevealedPrincipalRef = useRef<bigint | null>(null);
 
   const handleSubmit = () => {
@@ -68,9 +79,22 @@ export function Deposit() {
   const requestedBase = amount ? toBaseUnits(amount, decimals) : 0n;
   const knownPrincipal = lastRevealedPrincipalRef.current;
   const withdrawWasClamped = mode === 'withdraw' && knownPrincipal !== null && requestedBase > knownPrincipal;
-
+  // Only trustworthy when we actually knew the principal beforehand; if
+  // the user never revealed their balance, we genuinely don't know
+  // whether a clamp happened, so we say so rather than guess.
   const withdrawAmountUnknown = mode === 'withdraw' && knownPrincipal === null;
 
+  // `action.run(...)`/`approveAction.run(...)` resolve as soon as the
+  // transaction is *broadcast* (a hash exists), not once it's actually
+  // mined — `action.status` only becomes 'success' later, once
+  // `useWaitForTransactionReceipt` confirms it on chain (see
+  // hooks/useCairnActions.ts). Refetching off the `.then()` of `run(...)`
+  // (the previous approach) re-read the *old* on-chain state before the
+  // transaction had actually landed, so a real, successful deposit or
+  // approval could show "success" in the UI while every balance/operator
+  // read still reflected the pre-transaction state until something else
+  // happened to trigger a refetch. Watching `status` itself and refetching
+  // only on the real success transition fixes that.
   const prevActionStatus = useRef(action.status);
   useEffect(() => {
     if (prevActionStatus.current !== 'success' && action.status === 'success') {
@@ -114,7 +138,7 @@ export function Deposit() {
     if (action.status === 'preparing') return 'Encrypting your amount';
     if (action.status === 'signing') return 'Awaiting wallet signature';
     if (action.status === 'submitting') return 'Submitting transaction';
-    return 'Confirming onchain';
+    return 'Confirming on chain';
   };
 
   const getSubtitle = () => {
@@ -128,6 +152,13 @@ export function Deposit() {
     return mode === 'deposit' ? `Building the encrypted deposit via the Zama relayer…` : 'Building the encrypted withdrawal request…';
   };
 
+  // BUG FIX: same cache-destroying toggle as Home.tsx had — hiding used to
+  // call `.reset()`, which clears the *shared* decrypt cache
+  // (context/DecryptedBalancesContext.tsx), forcing a brand new EIP-712
+  // signature and relayer round trip just to look at the same number again
+  // a moment later. Hiding is now a free local toggle, tracked separately
+  // for the two values this screen can show (wallet balance in Deposit
+  // mode, principal in Withdraw mode) since they're different handles.
   const [walletHidden, setWalletHidden] = useState(false);
   const [principalHidden, setPrincipalHidden] = useState(false);
 
@@ -154,6 +185,14 @@ export function Deposit() {
   const activeDecrypt = mode === 'deposit' ? walletDecryptState : decryptState;
   const isBusyDecrypting = ['preparing', 'signing', 'decrypting'].includes(activeDecrypt.status);
 
+  // Quick-amount buttons are a *percentage of the revealed balance*
+  // (25% / 50% / 75% / Max) — not literal flat token amounts. A fixed
+  // "25 cUSDT" button is meaningless to someone with a 4,000 cUSDT balance
+  // and unusable to someone with an 8 cUSDT balance; every real
+  // consumer-fintech quick-amount row scales with the actual balance being
+  // acted on. If the balance hasn't been revealed yet, clicking a preset
+  // triggers the same reveal the eye button does, then fills the amount
+  // once it resolves — same pattern the old "Max"-only version used.
   const pendingPctRef = useRef<number | null>(null);
   const applyPercentage = (pct: number) => {
     if (activeDecrypt.status === 'success' && activeDecrypt.value !== null) {
@@ -176,7 +215,7 @@ export function Deposit() {
     if (pendingPctRef.current !== null && activeDecrypt.status === 'error') {
       pendingPctRef.current = null;
     }
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDecrypt.status, activeDecrypt.value]);
 
   return (
@@ -292,7 +331,7 @@ export function Deposit() {
                 {needsApproval ? (
                   <>
                     <Callout className="mt-[24px]" variant="primary">
-                     Authorize Cairn to move your {symbol} before your first deposit.
+                      One-time step: authorize Cairn to move your {symbol} before your first deposit.
                     </Callout>
                     <Button className="w-full mt-[24px] h-[52px] text-[15px]" disabled={!isConnected || !isContractConfigured || (isConnected && !isSepolia)} onClick={handleApprove}>
                       {!isConnected ? 'Connect Wallet' : `Approve CairnPool for ${symbol}`}
@@ -301,12 +340,16 @@ export function Deposit() {
                 ) : (
                   <>
                     <Callout className="mt-[24px]" variant="primary">
-                      Your {mode} amount is encrypted before it ever leaves your browser.
+                      Your {mode} amount is encrypted before it ever leaves your browser. Not even Cairn can see the amount.
                     </Callout>
                     <Button className="w-full mt-[24px] h-[52px] text-[15px]" disabled={isSubmitting || !isConnected || !isContractConfigured || (isConnected && !isSepolia) || !amount} onClick={handleSubmit}>
                       {!isConnected ? 'Connect Wallet' : mode === 'deposit' ? `Encrypt & deposit` : `Encrypt & withdraw`}
                     </Button>
-                    
+                    {/* Exits leavePool(): withdraws everything AND removes the
+                        caller from the on-chain participant set. Fixes a real
+                        contract gap — a wallet that only ever calls
+                        withdraw() keeps counting toward "everyone ready"
+                        forever, with no way out, even at a zero balance. */}
                     {mode === 'withdraw' && isConnected && (
                       leavePoolAction.status !== 'idle' ? (
                         <div className="mt-[14px]">
@@ -331,7 +374,6 @@ export function Deposit() {
                           disabled={!isContractConfigured || !isSepolia}
                           className="w-full mt-[14px] text-[12.5px] text-text-2 hover:text-text-1 transition-colors disabled:opacity-40"
                         >
-                       
                         </button>
                       )
                     )}

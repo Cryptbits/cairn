@@ -1,6 +1,6 @@
 import React from 'react';
 import { ViewType } from '../types';
-import { Home, ArrowDownCircle, Trophy, CheckCircle2, Shield, BookOpen, Wrench } from 'lucide-react';
+import { Home, ArrowDownCircle, Trophy, CheckCircle2, BookOpen, Wrench } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAccount } from 'wagmi';
 import { WalletHeader } from './layout/WalletHeader';
@@ -36,7 +36,7 @@ export function Layout({ currentView, setCurrentView, children }: LayoutProps) {
     { id: 'deposit', label: 'Deposit / Withdraw', mobileLabel: 'Deposit', icon: ArrowDownCircle },
     { id: 'draw', label: 'Draw', icon: Trophy },
     { id: 'result', label: 'Claim', icon: CheckCircle2 },
-    { id: 'privacy', label: 'Privacy Center', mobileLabel: 'More', icon: Shield, mobileIcon: BookOpen, groupLabel: 'Learn' },
+    { id: 'privacy', label: 'Privacy Center', mobileLabel: 'More', icon: BookOpen, groupLabel: 'Learn' },
     ...(isOwner ? [{ id: 'admin' as ViewType, label: 'Fund yield source', icon: Wrench, groupLabel: 'Owner tools' }] : []),
   ];
 

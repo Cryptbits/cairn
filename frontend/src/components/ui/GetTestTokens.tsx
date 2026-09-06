@@ -1,7 +1,6 @@
 import React from 'react';
 import { Droplet, ArrowUpRight } from 'lucide-react';
 
-
 export function GetTestTokens({ symbol, context = 'deposit with' }: { symbol: string; context?: string }) {
   return (
     <div className="flex items-center gap-[12px] w-full p-[12px_16px] rounded-[14px] bg-surface-2 border border-bdr">

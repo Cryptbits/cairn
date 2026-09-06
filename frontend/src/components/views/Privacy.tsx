@@ -128,8 +128,7 @@ export function Privacy() {
             </div>
             <p className="text-[13.5px] text-text-2 leading-relaxed flex-1">
               Each round's prize is computed automatically from that percentage of the round's real, verified total draw weight, paid
-              out of a reserve the contract owner funds ahead of time. The mechanism itself is
-              genuine, no one decides a prize by hand round to round, and a draw can never pay out more than what's actually funded.
+              out of a reserve the contract owner funds ahead of time. No one decides a prize by hand round to round, and a draw can never pay out more than what's actually funded.
             </p>
           </div>
         </Card>

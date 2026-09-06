@@ -8,13 +8,17 @@ what you or anyone else has in the pool.
 Built for the Zama Developer Program Mainnet Season 4 (Confidential
 PoolTogether track), on Sepolia.
 
-**Live app:** _\<add your deployed URL here before submitting — required by
-the bounty; a live link is how judges actually try it\>_
+**Live app:** https://cairn-pool.vercel.app
 
-**Deployed contract (Sepolia):** _\<add your CairnPool address here — see
-`docs/DEPLOYMENT.md` for how to deploy it\>_
+**Deployed contract (Sepolia):** 0x86F3861ae89b5578319997434e9c82C3bA697a8e
 
-## Getting test tokens (for judges trying the app)
+**Contracts:** `contracts/CairnPool.sol` deployed via `scripts/deploy.ts`
+(`npm run deploy:sepolia`), funded via `scripts/fundYieldSource.ts`, and
+kept moving via the keeper bot in `scripts/keeper.ts` — see [Draw
+automation](#draw-automation-who-pays-the-gas) below for how that last one
+works.
+
+## Getting test tokens
 
 Cairn's pool uses Zama's official Sepolia cUSDT wrapper, not a private
 mock token — the same one listed in
@@ -32,9 +36,11 @@ so anyone can obtain it the standard way any Zama confidential app expects:
    capped at 1,000,000 tokens per call — call it directly from Etherscan's
    "Write Contract" tab with your own address, no faucet request or
    allowlist needed.
-3. **Wrap it into cUSDT** at [app.zama.org/shield](https://app.zama.org/shield)
-   — Zama's own wrap/unwrap app, the standard entry point into the
-   confidential-token ecosystem for any wrapped pair.
+3. **Wrap it into cUSDT** at [portfolio.zama.org](https://portfolio.zama.org)
+   — Zama's Portfolio App, which covers shielding/unshielding/transfers on
+   both Ethereum mainnet and Sepolia testnet. Select Sepolia once connected
+   (`app.zama.org/shield` is the mainnet-only quick-shield action and won't
+   show this testnet token).
 4. Deposit the resulting cUSDT into Cairn as normal.
 
 ## What it is
@@ -101,8 +107,9 @@ npm run keeper:watch    # polls continuously (KEEPER_POLL_INTERVAL_SECONDS, defa
 ```
 
 It needs its own funded Sepolia wallet in `KEEPER_PRIVATE_KEY` (see
-`config/.env.example`) — no special privilege, just gas money, since these
-functions are open to anyone.
+an env file at `config/.env` — see `scripts/keeper.ts`'s own header comment
+for the exact variables) — no special privilege, just gas money, since
+these functions are open to anyone.
 
 **If the keeper is down:** the pool owner sees a manual "Admin: start /
 continue draw now" fallback button on the Draw screen (gated to the
@@ -170,7 +177,8 @@ deploying, or change it after via the owner-only `setYieldRateBps`.
 `fundYieldSource` can be called from the owner-only "Fund yield source" panel
 built into the frontend itself — it appears in the sidebar under "Owner
 tools" automatically once the connected wallet matches the contract owner
-(see `docs/DEPLOYMENT.md` step 6) — or from `scripts/fundYieldSource.ts`.
+— or by running `scripts/fundYieldSource.ts` directly (see that script's
+header comment for the required env vars).
 
 **How a real yield source would plug in:** replace the `yieldRateBps *
 total` calculation in `submitTotalWeight` with a read from an actual
@@ -225,7 +233,7 @@ has, immaterial at real pool-weight magnitudes).
 ## Why it's built this way
 
 - **No admin bottleneck, no depositor bottleneck either.** The three
-  draw-progression calls stay permissionless on-chain (see [Draw
+  draw-progression calls stay permissionless onchain (see [Draw
   automation](#draw-automation-who-pays-the-gas)) so the pool keeps
   working even if whoever deployed it walks away — but in normal
   operation a dedicated keeper bot, not a random saver's wallet, is the
@@ -251,13 +259,11 @@ has, immaterial at real pool-weight magnitudes).
 contracts/     CairnPool.sol — the pool contract
 frontend/      the app itself
 scripts/       deployment, yield-source-funding, and draw-keeper tooling
-  deploy.ts        deploy CairnPool to Sepolia
+  deploy.ts           deploy CairnPool to Sepolia — npm run deploy:sepolia
   fundYieldSource.ts  seed the prize reserve (owner-only, run after deploy)
-  keeper.ts        automated bot that advances draws — see "Draw automation" above
-  benchmarkHCU.ts  verifies MAX_COHORT_SIZE against the real per-tx HCU budget
-  deployLocal.ts   local-network variant of deploy.ts, for development only
+  keeper.ts           automated bot that advances draws — see "Draw automation" above
+  benchmarkHCU.ts     verifies MAX_COHORT_SIZE against the real per-tx HCU budget
+  deployLocal.ts      local-network variant of deploy.ts, for development only
 test/          contract tests
-docs/
-  DEPLOYMENT.md  full deployment guide: env setup, deploying, funding the reserve,
-                 running the keeper, and a two-wallet smoke test — start here
+.github/workflows/keeper.yml   scheduled GitHub Action that runs the keeper bot
 ```
